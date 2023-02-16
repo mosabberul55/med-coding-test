@@ -190,23 +190,27 @@ class ProductController extends Controller
      * Display the specified resource.
      *
      * @param \App\Models\Product $product
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Http\Response|\Illuminate\View\View
      */
     public function show($product)
     {
-
+        $product = Product::findOrfail($product);
+        $product->load(['productImages']);
+        return view('products.show', compact('product'));
     }
 
     /**
      * Show the form for editing the specified resource.
      *
      * @param \App\Models\Product $product
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Http\Response|\Illuminate\View\View
      */
     public function edit(Product $product)
     {
         $variants = Variant::all();
-        return view('products.edit', compact('variants'));
+        $product->load(['productImages', 'productVariantPrices.productVariantOne', 'productVariantPrices.productVariantTwo', 'productVariantPrices.productVariantThree']);
+//        return $product;
+        return view('products.edit', compact('variants', 'product'));
     }
 
     /**

@@ -1,6 +1,7 @@
 <template>
     <section>
         <div class="row">
+            {{ product }}
             <div class="col-md-6">
                 <div class="card shadow mb-4">
                     <div class="card-body">
@@ -25,12 +26,18 @@
                     </div>
                 </div>
 
-                <div class="card shadow mb-4">
+                <div class="card shadow mb-2">
                     <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                         <h6 class="m-0 font-weight-bold text-primary">Media</h6>
                     </div>
                     <div class="card-body border">
                         <vue-dropzone ref="myVueDropzone" id="dropzone" :options="dropzoneOptions" @vdropzone-success="onSuccess"  @vdropzone-removed-file="onRemovedFile"></vue-dropzone>
+                    </div>
+                </div>
+                <label for="">Old Photos:</label>
+                <div v-if="old_images && old_images.length"  class="d-flex mb-3" style="gap: 10px;">
+                    <div class="shadow p-1" v-for="(image, i) in old_images" :key="i">
+                        <img :src="image" width="120px" :alt="image">
                     </div>
                 </div>
             </div>
@@ -127,6 +134,10 @@ export default {
         variants: {
             type: Array,
             required: true
+        },
+        product: {
+            type: Object,
+            required: true
         }
     },
     data() {
@@ -135,6 +146,7 @@ export default {
             product_sku: '',
             description: '',
             images: [],
+            old_images: [],
             showToast: false,
             errors: {},
             product_variant: [
@@ -250,7 +262,17 @@ export default {
 
     },
     mounted() {
-        console.log('Component mounted.')
+        this.product_name = this.product.title
+        this.product_sku= this.product.sku
+        this.description= this.product.description
+        this.old_images = this.product.product_images.map(el => el.file_path)
+        this.product.product_variant_prices.forEach(el => {
+            this.product_variant_prices.push({
+                title: el.title,
+                price: el.price,
+                stock: el.stock
+            })
+        })
     }
 }
 </script>
