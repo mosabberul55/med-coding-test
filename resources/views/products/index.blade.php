@@ -64,7 +64,7 @@
                             <td>{{ $product->title }} <br> Created at : {{$product->created_at}}</td>
                             <td><small>{{$product->description}}</small></td>
                             <td>
-                                <dl class="row mb-0" style="height: 80px; overflow: hidden" id="variant">
+                                <dl class="row mb-0" style="height: 80px; overflow: hidden" id="variant-{{ $product->id }}">
                                     @foreach($product->productVariantPrices as $productVariant)
                                         <dt class="col-sm-3 pb-0">
                                             {{$productVariant->productVariantTwo ? $productVariant->productVariantTwo->variant : '' }}
@@ -81,13 +81,11 @@
                                         </dd>
                                     @endforeach
                                 </dl>
-                                <button onclick="$('#variant').toggleClass('h-auto')" class="btn btn-sm btn-link">Show
-                                    more
-                                </button>
+                                <button id="show-more-{{ $product->id }}" onclick="$('#variant-{{ $product->id }}').toggleClass('h-auto')" class="btn btn-sm btn-link">Show more</button>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm">
-                                    <a href="{{ route('product.edit', 1) }}" class="btn btn-success">Edit</a>
+                                    <a href="{{ route('product.edit', $product->id) }}" class="btn btn-success">Edit</a>
                                 </div>
                             </td>
                         </tr>
