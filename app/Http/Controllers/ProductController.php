@@ -17,15 +17,68 @@ class ProductController extends Controller
      */
     public function index()
     {
-        $variants = Variant::with(['productVariants' => function ($query) {
-            return $query->select('variant')->groupBy('variant');
-        }])->orderBy('title')
-            ->distinct()
-            ->get()
-            ->groupBy('title');
+        //i don't know why this is not working
+//        $variants = Variant::with(['productVariants' => function ($query) {
+//            return $query->select('variant')->groupBy('variant');
+//        }])->orderBy('title')->distinct()->get()->groupBy('title');
 
+        //that's why i used this
+        $variants = Variant::with(['productVariants'])->orderBy('title')->distinct()->get()->groupBy('title');
+        $variants = $variants->map(function ($item) {
+            return $item->map(function ($item) {
+                return $item->productVariants->unique('variant')->pluck('variant');
+            });
+        })->map(function ($item) {
+            return $item->flatten();
+        });
         $products = Product::with('productVariantPrices.productVariantOne:id,variant', 'productVariantPrices.productVariantTwo:id,variant', 'productVariantPrices.productVariantThree:id,variant')->paginate(2);
-        return view('products.index', compact('products'));
+        return view('products.index', compact('products', 'variants'));
+    }
+
+    public function search()
+    {
+        $title = request('title');
+        $variant = request('variant');
+        $price_from = request('price_from');
+        $price_to = request('price_to');
+        $date = request('date');
+
+        $productsSearch = Product::query();
+        if ($title) {
+            $productsSearch->where('title', 'like', '%' . $title . '%');
+        }
+        if ($variant) {
+            $productsSearch->whereHas('productVariants', function ($query) use ($variant) {
+                $query->where('variant', $variant);
+            });
+        }
+        if ($price_from) {
+            $productsSearch->whereHas('productVariantPrices', function ($query) use ($price_from) {
+                $query->where('price', '>=', $price_from);
+            });
+        }
+        if ($price_to) {
+            $productsSearch->whereHas('productVariantPrices', function ($query) use ($price_to) {
+                $query->where('price', '<=', $price_to);
+            });
+        }
+        if ($date) {
+            $productsSearch->whereHas('productVariantPrices', function ($query) use ($date) {
+                $query->where('date', $date);
+            });
+        }
+        $products = $productsSearch->paginate(2);
+//        return $products;
+        $variants = Variant::with(['productVariants'])->orderBy('title')->distinct()->get()->groupBy('title');
+        $variants = $variants->map(function ($item) {
+            return $item->map(function ($item) {
+                return $item->productVariants->unique('variant')->pluck('variant');
+            });
+        })->map(function ($item) {
+            return $item->flatten();
+        });
+        return view('products.index', compact('products', 'variants'));
+
     }
 
     /**

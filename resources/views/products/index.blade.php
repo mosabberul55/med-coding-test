@@ -8,14 +8,21 @@
 
 
     <div class="card">
-        <form action="" method="get" class="card-header">
+        <form action="{!! route('searchProduct') !!}" method="get" class="card-header">
             <div class="form-row justify-content-between">
                 <div class="col-md-2">
                     <input type="text" name="title" placeholder="Product Title" class="form-control">
                 </div>
                 <div class="col-md-2">
                     <select name="variant" id="" class="form-control">
-
+                        <option value="" disabled selected hidden>--Select A Variant--</option>
+                        @foreach($variants as $key => $variant)
+                            <optgroup label="{{$key}}">
+                                @foreach($variants[$key] as $value)
+                                    <option value="{{$value}}">{{$value}}</option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
                     </select>
                 </div>
 
@@ -24,9 +31,9 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text">Price Range</span>
                         </div>
-                        <input type="text" name="price_from" aria-label="First name" placeholder="From"
+                        <input type="text" name="price_from" aria-label="Price From" placeholder="From"
                                class="form-control">
-                        <input type="text" name="price_to" aria-label="Last name" placeholder="To" class="form-control">
+                        <input type="text" name="price_to" aria-label="Price To" placeholder="To" class="form-control">
                     </div>
                 </div>
                 <div class="col-md-2">
