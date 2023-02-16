@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Observers\ProductVariantObserver;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductVariant extends Model
 {
     protected $fillable = [
-        'product_id', 'variant_id', 'variant_value'
+        'product_id', 'variant_id', 'variant'
     ];
 
     public function product(): \Illuminate\Database\Eloquent\Relations\BelongsTo

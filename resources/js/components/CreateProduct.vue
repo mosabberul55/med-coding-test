@@ -6,11 +6,17 @@
                     <div class="card-body">
                         <div class="form-group">
                             <label for="">Product Name</label>
-                            <input type="text" v-model="product_name" placeholder="Product Name" class="form-control">
+                            <input type="text" v-model="product_name" placeholder="Product Name" class="form-control" :class="{ 'is-invalid': errors.title }">
+                            <div class="invalid-feedback" v-if="errors.title">
+                                {{ errors.title[0] }}
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="">Product SKU</label>
-                            <input type="text" v-model="product_sku" placeholder="Product Name" class="form-control">
+                            <input type="text" v-model="product_sku" placeholder="Product SKU" class="form-control" :class="{ 'is-invalid': errors.sku }">
+                            <div class="invalid-feedback" v-if="errors.sku">
+                                {{ errors.sku[0] }}
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="">Description</label>
@@ -24,7 +30,7 @@
                         <h6 class="m-0 font-weight-bold text-primary">Media</h6>
                     </div>
                     <div class="card-body border">
-                        <vue-dropzone ref="myVueDropzone" id="dropzone" :options="dropzoneOptions"></vue-dropzone>
+                        <vue-dropzone ref="myVueDropzone" id="dropzone" :options="dropzoneOptions" @vdropzone-success="onSuccess"  @vdropzone-removed-file="onRemovedFile"></vue-dropzone>
                     </div>
                 </div>
             </div>
@@ -91,8 +97,19 @@
             </div>
         </div>
 
-        <button @click="saveProduct" type="submit" class="btn btn-lg btn-primary">Save</button>
-        <button type="button" class="btn btn-secondary btn-lg">Cancel</button>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <button @click="saveProduct" type="submit" class="btn btn-lg btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary btn-lg">Cancel</button>
+            </div>
+
+            <div v-if="showToast" class="mx-2 flex-fill alert alert-success alert-dismissible fade show my-2" role="alert">
+                <strong>Success!</strong> Product created successfully!!.
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        </div>
     </section>
 </template>
 
@@ -118,6 +135,8 @@ export default {
             product_sku: '',
             description: '',
             images: [],
+            showToast: false,
+            errors: {},
             product_variant: [
                 {
                     option: this.variants[0].id,
@@ -126,14 +145,26 @@ export default {
             ],
             product_variant_prices: [],
             dropzoneOptions: {
-                url: 'https://httpbin.org/post',
+                url: '/upload',
                 thumbnailWidth: 150,
-                maxFilesize: 0.5,
-                headers: {"My-Awesome-Header": "header value"}
+                maxFilesize: 2,
+                headers: {
+                    'X-CSRF-TOKEN': document.head.querySelector('meta[name="csrf-token"]').content
+                }
+                // headers: {"My-Awesome-Header": "header value"}
             }
         }
     },
     methods: {
+        onSuccess (file, response) {
+            this.images.push(response.filename)
+        },
+        onRemovedFile (file, error, xhr) {
+            const index = this.images.indexOf(file.name)
+            if (index > -1) {
+                this.images.splice(index, 1)
+            }
+        },
         // it will push a new object into product variant
         newVariant() {
             let all_variants = this.variants.map(el => el.id)
@@ -179,6 +210,8 @@ export default {
 
         // store product into database
         saveProduct() {
+            this.errors = {}
+            this.showToast = false
             let product = {
                 title: this.product_name,
                 sku: this.product_sku,
@@ -190,9 +223,24 @@ export default {
 
 
             axios.post('/product', product).then(response => {
+                this.showToast = true
                 console.log(response.data);
+                this.product_name = ''
+                this.product_sku= ''
+                this.description= ''
+                this.images= []
+                this.product_variant= [
+                    {
+                        option: this.variants[0].id,
+                        tags: []
+                    }
+                ]
+                this.product_variant_prices= []
             }).catch(error => {
-                console.log(error);
+                if (error.response.status === 422) {
+                    this.errors = error.response.data.errors;
+                }
+                console.log(error.response);
             })
 
             console.log(product);

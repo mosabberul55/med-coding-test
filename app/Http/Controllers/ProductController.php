@@ -7,6 +7,7 @@ use App\Models\ProductVariant;
 use App\Models\ProductVariantPrice;
 use App\Models\Variant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -19,8 +20,9 @@ class ProductController extends Controller
     {
         //i don't know why this is not working
 //        $variants = Variant::with(['productVariants' => function ($query) {
-//            return $query->select('variant')->groupBy('variant');
+//            return $query->select('variant')->distinct('variant');
 //        }])->orderBy('title')->distinct()->get()->groupBy('title');
+//        return response()->json($variants);
 
         //that's why i used this
         $variants = Variant::with(['productVariants'])->orderBy('title')->distinct()->get()->groupBy('title');
@@ -92,15 +94,95 @@ class ProductController extends Controller
         return view('products.create', compact('variants'));
     }
 
+    public function upload(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $file = $request->file('file');
+        $name = time() . '.' . $file->getClientOriginalExtension();
+        $destinationPath = public_path('/images');
+        $file->move($destinationPath, $name);
+
+        return response()->json(['filename' => $name]);
+    }
+
     /**
      * Store a newly created resource in storage.
      *
      * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
+        $request->validate([
+            'title' => 'required',
+            'description' => 'nullable',
+            'sku' => 'required|unique:products,sku',
+            'product_image' => 'nullable|array',
+            'product_variant' => 'nullable|array',
+            'product_variant_prices' => 'nullable|array'
+        ]);
 
+        //insert product
+        $productData = $request->only('title', 'description', 'sku');
+        $product = Product::create($productData);
+
+        // Insert Images
+        if (count($request->product_image)) {
+            $productImages = [];
+            foreach ($request->product_image as $image) {
+                $productImages[] = [
+                    'product_id' => $product->id,
+                    'file_path' => $image,
+                ];
+            }
+            $product->productImages()->insert($productImages);
+        }
+        // Insert Variants
+        if (count($request->product_variant)) {
+            $productVariantsData = [];
+            foreach ($request->product_variant as $variant) {
+                if ($variant['option'] && count($variant['tags'])) {
+                    foreach ($variant['tags'] as $tags) {
+                        $productVariantsData[] = [
+                            'product_id' => $product->id,
+                            'variant' => $tags,
+                            'variant_id' => $variant['option'],
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ];
+                    }
+                }
+            }
+            ProductVariant::insert($productVariantsData);
+        }
+
+        if (count($request->product_variant_prices)) {
+            foreach ($request->product_variant_prices as $product_variant_price) {
+                $title = substr($product_variant_price['title'], 0, -1);
+                $titleArr = explode('/', $title);
+                $product_variant_price1 = null;
+                $product_variant_price2 = null;
+                $product_variant_price3 = null;
+                if (isset($titleArr[0])) {
+                    $product_variant_price1 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[0])->latest()->first()->id;
+                }
+                if(isset($titleArr[1])){
+                    $product_variant_price2 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[1])->latest()->first()->id;
+                }
+                if(isset($titleArr[2])){
+                    $product_variant_price3 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[2])->latest()->first()->id;
+                }
+                ProductVariantPrice::create([
+                    'product_variant_one' => $product_variant_price1,
+                    'product_variant_two' => $product_variant_price2,
+                    'product_variant_three' => $product_variant_price3,
+                    'price' => $product_variant_price['price'],
+                    'stock' => $product_variant_price['stock'],
+                    'product_id' => $product->id
+                ]);
+            }
+        }
+
+        return redirect()->back()->with('success', 'Product Saved');
     }
 
 

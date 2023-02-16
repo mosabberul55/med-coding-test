@@ -100,12 +100,18 @@
         </div>
 
         <div class="card-footer">
-            <div class="row justify-content-between">
-                <div class="col-md-6">
-                    <p>Showing {{$products->firstItem()}} to {{$products->lastItem()}} out of {{$products->total()}}</p>
-                </div>
+            <div class="row">
+                @if($products->total() > 0)
+                    <div class="cols-12 col-md-4">
+                        <p>Showing {{$products->firstItem()}} to {{$products->lastItem()}} out of {{$products->total()}}</p>
+                    </div>
+                @else
+                    <div class="col-md-4">
+                        <p>No Product Found</p>
+                    </div>
+                @endif
 
-                <div class="col-md-3">
+                <div class="cols-12 col-md-8">
                     {{ $products->links()}}
                 </div>
             </div>

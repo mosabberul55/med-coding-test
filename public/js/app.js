@@ -2012,6 +2012,23 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 
 
 
@@ -2032,22 +2049,35 @@ __webpack_require__.r(__webpack_exports__);
       product_sku: '',
       description: '',
       images: [],
+      showToast: false,
+      errors: {},
       product_variant: [{
         option: this.variants[0].id,
         tags: []
       }],
       product_variant_prices: [],
       dropzoneOptions: {
-        url: 'https://httpbin.org/post',
+        url: '/upload',
         thumbnailWidth: 150,
-        maxFilesize: 0.5,
+        maxFilesize: 2,
         headers: {
-          "My-Awesome-Header": "header value"
-        }
+          'X-CSRF-TOKEN': document.head.querySelector('meta[name="csrf-token"]').content
+        } // headers: {"My-Awesome-Header": "header value"}
+
       }
     };
   },
   methods: {
+    onSuccess: function onSuccess(file, response) {
+      this.images.push(response.filename);
+    },
+    onRemovedFile: function onRemovedFile(file, error, xhr) {
+      var index = this.images.indexOf(file.name);
+
+      if (index > -1) {
+        this.images.splice(index, 1);
+      }
+    },
     // it will push a new object into product variant
     newVariant: function newVariant() {
       var all_variants = this.variants.map(function (el) {
@@ -2100,6 +2130,10 @@ __webpack_require__.r(__webpack_exports__);
     },
     // store product into database
     saveProduct: function saveProduct() {
+      var _this2 = this;
+
+      this.errors = {};
+      this.showToast = false;
       var product = {
         title: this.product_name,
         sku: this.product_sku,
@@ -2109,9 +2143,23 @@ __webpack_require__.r(__webpack_exports__);
         product_variant_prices: this.product_variant_prices
       };
       axios.post('/product', product).then(function (response) {
+        _this2.showToast = true;
         console.log(response.data);
+        _this2.product_name = '';
+        _this2.product_sku = '';
+        _this2.description = '';
+        _this2.images = [];
+        _this2.product_variant = [{
+          option: _this2.variants[0].id,
+          tags: []
+        }];
+        _this2.product_variant_prices = [];
       })["catch"](function (error) {
-        console.log(error);
+        if (error.response.status === 422) {
+          _this2.errors = error.response.data.errors;
+        }
+
+        console.log(error.response);
       });
       console.log(product);
     }
@@ -50490,6 +50538,7 @@ var render = function() {
                   }
                 ],
                 staticClass: "form-control",
+                class: { "is-invalid": _vm.errors.title },
                 attrs: { type: "text", placeholder: "Product Name" },
                 domProps: { value: _vm.product_name },
                 on: {
@@ -50500,7 +50549,17 @@ var render = function() {
                     _vm.product_name = $event.target.value
                   }
                 }
-              })
+              }),
+              _vm._v(" "),
+              _vm.errors.title
+                ? _c("div", { staticClass: "invalid-feedback" }, [
+                    _vm._v(
+                      "\n                            " +
+                        _vm._s(_vm.errors.title[0]) +
+                        "\n                        "
+                    )
+                  ])
+                : _vm._e()
             ]),
             _vm._v(" "),
             _c("div", { staticClass: "form-group" }, [
@@ -50516,7 +50575,8 @@ var render = function() {
                   }
                 ],
                 staticClass: "form-control",
-                attrs: { type: "text", placeholder: "Product Name" },
+                class: { "is-invalid": _vm.errors.sku },
+                attrs: { type: "text", placeholder: "Product SKU" },
                 domProps: { value: _vm.product_sku },
                 on: {
                   input: function($event) {
@@ -50526,7 +50586,17 @@ var render = function() {
                     _vm.product_sku = $event.target.value
                   }
                 }
-              })
+              }),
+              _vm._v(" "),
+              _vm.errors.sku
+                ? _c("div", { staticClass: "invalid-feedback" }, [
+                    _vm._v(
+                      "\n                            " +
+                        _vm._s(_vm.errors.sku[0]) +
+                        "\n                        "
+                    )
+                  ])
+                : _vm._e()
             ]),
             _vm._v(" "),
             _c("div", { staticClass: "form-group" }, [
@@ -50566,7 +50636,11 @@ var render = function() {
             [
               _c("vue-dropzone", {
                 ref: "myVueDropzone",
-                attrs: { id: "dropzone", options: _vm.dropzoneOptions }
+                attrs: { id: "dropzone", options: _vm.dropzoneOptions },
+                on: {
+                  "vdropzone-success": _vm.onSuccess,
+                  "vdropzone-removed-file": _vm.onRemovedFile
+                }
               })
             ],
             1
@@ -50775,19 +50849,46 @@ var render = function() {
     ]),
     _vm._v(" "),
     _c(
-      "button",
-      {
-        staticClass: "btn btn-lg btn-primary",
-        attrs: { type: "submit" },
-        on: { click: _vm.saveProduct }
-      },
-      [_vm._v("Save")]
-    ),
-    _vm._v(" "),
-    _c(
-      "button",
-      { staticClass: "btn btn-secondary btn-lg", attrs: { type: "button" } },
-      [_vm._v("Cancel")]
+      "div",
+      { staticClass: "d-flex align-items-center justify-content-between" },
+      [
+        _c("div", [
+          _c(
+            "button",
+            {
+              staticClass: "btn btn-lg btn-primary",
+              attrs: { type: "submit" },
+              on: { click: _vm.saveProduct }
+            },
+            [_vm._v("Save")]
+          ),
+          _vm._v(" "),
+          _c(
+            "button",
+            {
+              staticClass: "btn btn-secondary btn-lg",
+              attrs: { type: "button" }
+            },
+            [_vm._v("Cancel")]
+          )
+        ]),
+        _vm._v(" "),
+        _vm.showToast
+          ? _c(
+              "div",
+              {
+                staticClass:
+                  "mx-2 flex-fill alert alert-success alert-dismissible fade show my-2",
+                attrs: { role: "alert" }
+              },
+              [
+                _c("strong", [_vm._v("Success!")]),
+                _vm._v(" Product created successfully!!.\n            "),
+                _vm._m(3)
+              ]
+            )
+          : _vm._e()
+      ]
     )
   ])
 }
@@ -50839,6 +50940,23 @@ var staticRenderFns = [
         _c("td", [_vm._v("Stock")])
       ])
     ])
+  },
+  function() {
+    var _vm = this
+    var _h = _vm.$createElement
+    var _c = _vm._self._c || _h
+    return _c(
+      "button",
+      {
+        staticClass: "close",
+        attrs: {
+          type: "button",
+          "data-dismiss": "alert",
+          "aria-label": "Close"
+        }
+      },
+      [_c("span", { attrs: { "aria-hidden": "true" } }, [_vm._v("×")])]
+    )
   }
 ]
 render._withStripped = true
