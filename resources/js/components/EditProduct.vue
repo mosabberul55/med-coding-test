@@ -1,7 +1,6 @@
 <template>
     <section>
         <div class="row">
-            {{ product }}
             <div class="col-md-6">
                 <div class="card shadow mb-4">
                     <div class="card-body">
@@ -106,12 +105,12 @@
 
         <div class="d-flex align-items-center justify-content-between">
             <div>
-                <button @click="saveProduct" type="submit" class="btn btn-lg btn-primary">Save</button>
+                <button @click="updateProduct" type="submit" class="btn btn-lg btn-primary">Update</button>
                 <button type="button" class="btn btn-secondary btn-lg">Cancel</button>
             </div>
 
             <div v-if="showToast" class="mx-2 flex-fill alert alert-success alert-dismissible fade show my-2" role="alert">
-                <strong>Success!</strong> Product created successfully!!.
+                <strong>Success!</strong> Product Updated successfully!!.
                 <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -168,6 +167,10 @@ export default {
             }
         }
     },
+    mounted() {
+        // console.log('mounted')
+        this.init()
+    },
     methods: {
         onSuccess (file, response) {
             this.images.push(response.filename)
@@ -222,7 +225,7 @@ export default {
         },
 
         // store product into database
-        saveProduct() {
+        updateProduct() {
             this.errors = {}
             this.showToast = false
             let product = {
@@ -231,48 +234,76 @@ export default {
                 description: this.description,
                 product_image: this.images,
                 product_variant: this.product_variant,
-                product_variant_prices: this.product_variant_prices
+                product_variant_prices: this.product_variant_prices,
+                _method: 'PUT'
             }
-
-
-            axios.post('/product', product).then(response => {
+            axios.post(`/product/${this.product.id}`, product).then(response => {
                 this.showToast = true
-                console.log(response.data);
-                this.product_name = ''
-                this.product_sku= ''
-                this.description= ''
-                this.images= []
-                this.product_variant= [
-                    {
-                        option: this.variants[0].id,
-                        tags: []
-                    }
-                ]
-                this.product_variant_prices= []
+                // console.log(response);
+                const product = response.data
+                this.product_name = response.data.data.title
+                this.product_sku= response.data.data.sku
+                this.description= response.data.data.description
+                this.processingTask(product)
             }).catch(error => {
                 if (error.response.status === 422) {
                     this.errors = error.response.data.errors;
                 }
-                console.log(error.response);
+                // console.log(error.response);
             })
 
-            console.log(product);
+            // console.log(product);
+        },
+        init() {
+            this.product_name = this.product.title
+            this.product_sku= this.product.sku
+            this.description= this.product.description
+            this.processingTask(this.product)
+        },
+        processingTask(product) {
+            // console.log(product)
+            this.old_images = product.product_images.map(el => el.file_path)
+            //preparing color,size and style object for product variant
+            const color = {
+                option: 1,
+                tags: product.product_variants.filter(el => el.variant_id == 1).map(el => el.variant)
+            }
+            const size = {
+                option: 2,
+                tags:product.product_variants.filter(el => el.variant_id == 2).map(el => el.variant)
+            }
+            const style = {
+                option: 3,
+                tags: product.product_variants.filter(el => el.variant_id == 3).map(el => el.variant)
+            }
+            this.product_variant = [];
+            if (color.tags.length > 0) {
+                this.product_variant.push(color);
+            }
+            if (size.tags.length > 0) {
+                this.product_variant.push(size);
+            }
+            if (style.tags.length > 0) {
+                this.product_variant.push(style);
+            }
+
+            //preparing product variant price combination
+            product.product_variant_prices.forEach(el => {
+                let title = el.product_variant_one.variant;
+                if (el.product_variant_two) {
+                    title += '/' + el.product_variant_two.variant;
+                }
+                if (el.product_variant_three) {
+                    title += '/' + el.product_variant_three.variant;
+                }
+                title += '/';
+                this.product_variant_prices.push({
+                    title: title,
+                    price: el.price,
+                    stock: el.stock
+                });
+            })
         }
-
-
-    },
-    mounted() {
-        this.product_name = this.product.title
-        this.product_sku= this.product.sku
-        this.description= this.product.description
-        this.old_images = this.product.product_images.map(el => el.file_path)
-        this.product.product_variant_prices.forEach(el => {
-            this.product_variant_prices.push({
-                title: el.title,
-                price: el.price,
-                stock: el.stock
-            })
-        })
     }
 }
 </script>

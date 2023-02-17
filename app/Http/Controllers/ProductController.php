@@ -155,6 +155,7 @@ class ProductController extends Controller
             ProductVariant::insert($productVariantsData);
         }
 
+        // Insert Variant Prices
         if (count($request->product_variant_prices)) {
             foreach ($request->product_variant_prices as $product_variant_price) {
                 $title = substr($product_variant_price['title'], 0, -1);
@@ -163,13 +164,22 @@ class ProductController extends Controller
                 $product_variant_price2 = null;
                 $product_variant_price3 = null;
                 if (isset($titleArr[0])) {
-                    $product_variant_price1 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[0])->latest()->first()->id;
+                    $product_variant1 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[0])->latest()->first();
+                    if($product_variant1) {
+                        $product_variant_price1 = $product_variant1->id;
+                    }
                 }
                 if(isset($titleArr[1])){
-                    $product_variant_price2 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[1])->latest()->first()->id;
+                    $product_variant2 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[1])->latest()->first();
+                    if($product_variant2) {
+                        $product_variant_price2 = $product_variant2->id;
+                    }
                 }
                 if(isset($titleArr[2])){
-                    $product_variant_price3 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[2])->latest()->first()->id;
+                    $product_variant3 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[2])->latest()->first();
+                    if($product_variant3) {
+                        $product_variant_price3 = $product_variant3->id;
+                    }
                 }
                 ProductVariantPrice::create([
                     'product_variant_one' => $product_variant_price1,
@@ -182,7 +192,9 @@ class ProductController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Product Saved');
+        session()->flash('success', 'A new Product has added successfully !!');
+        return redirect()->route('product.index');
+//        return redirect()->back()->with('success', 'Product Saved');
     }
 
 
@@ -208,7 +220,9 @@ class ProductController extends Controller
     public function edit(Product $product)
     {
         $variants = Variant::all();
-        $product->load(['productImages', 'productVariantPrices.productVariantOne', 'productVariantPrices.productVariantTwo', 'productVariantPrices.productVariantThree']);
+        $product->load(['productVariants' => function($query) use ($product) {
+            $query->distinct('variant');
+        },'productImages:id,product_id,file_path', 'productVariantPrices.productVariantOne:id,variant', 'productVariantPrices.productVariantTwo:id,variant', 'productVariantPrices.productVariantThree:id,variant']);
 //        return $product;
         return view('products.edit', compact('variants', 'product'));
     }
@@ -218,11 +232,104 @@ class ProductController extends Controller
      *
      * @param \Illuminate\Http\Request $request
      * @param \App\Models\Product $product
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\JsonResponse
      */
     public function update(Request $request, Product $product)
     {
-        //
+        $request->validate([
+            'title' => 'required',
+            'description' => 'nullable',
+            'sku' => 'required|unique:products,sku,' . $product->id,
+            'product_image' => 'nullable|array',
+            'product_variant' => 'nullable|array',
+            'product_variant_prices' => 'nullable|array'
+        ]);
+
+        //update product
+        $productData = $request->only('title', 'description', 'sku');
+        $product->update($productData);
+
+        //update images
+        if (count($request->product_image)) {
+            $productImages = [];
+            foreach ($request->product_image as $image) {
+                $productImages[] = [
+                    'product_id' => $product->id,
+                    'file_path' => $image,
+                ];
+            }
+            //delete old images
+            $product->productImages()->delete();
+            $product->productImages()->insert($productImages);
+        }
+
+        //update variants
+        if (count($request->product_variant)) {
+            //delete previous variants
+            $product->productVariants()->delete();
+            $productVariantsData = [];
+            //prepared new data for inserting updated product variants
+            foreach ($request->product_variant as $variant) {
+                if ($variant['option'] && count($variant['tags'])) {
+                    foreach ($variant['tags'] as $tags) {
+                        $productVariantsData[] = [
+                            'product_id' => $product->id,
+                            'variant' => $tags,
+                            'variant_id' => $variant['option'],
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ];
+                    }
+                }
+            }
+            //insert updated variants
+            ProductVariant::insert($productVariantsData);
+        }
+
+        //update variant prices and delete old price variants
+        if (count($request->product_variant_prices)) {
+            $product->productVariantPrices()->delete();
+            foreach ($request->product_variant_prices as $product_variant_price) {
+                $title = substr($product_variant_price['title'], 0, -1);
+                $titleArr = explode('/', $title);
+                $product_variant_price1 = null;
+                $product_variant_price2 = null;
+                $product_variant_price3 = null;
+                if (isset($titleArr[0])) {
+                    $product_variant1 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[0])->latest()->first();
+                    if($product_variant1) {
+                        $product_variant_price1 = $product_variant1->id;
+                    }
+                }
+                if(isset($titleArr[1])){
+                    $product_variant2 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[1])->latest()->first();
+                    if($product_variant2) {
+                        $product_variant_price2 = $product_variant2->id;
+                    }
+                }
+                if(isset($titleArr[2])){
+                    $product_variant3 = ProductVariant::where('product_id', $product->id)->where('variant', $titleArr[2])->latest()->first();
+                    if($product_variant3) {
+                        $product_variant_price3 = $product_variant3->id;
+                    }
+                }
+                ProductVariantPrice::create([
+                    'product_variant_one' => $product_variant_price1,
+                    'product_variant_two' => $product_variant_price2,
+                    'product_variant_three' => $product_variant_price3,
+                    'price' => $product_variant_price['price'],
+                    'stock' => $product_variant_price['stock'],
+                    'product_id' => $product->id
+                ]);
+            }
+        }
+
+        $product->load(['productVariants' => function($query) use ($product) {
+            $query->distinct('variant');
+        },'productImages:id,product_id,file_path', 'productVariantPrices.productVariantOne:id,variant', 'productVariantPrices.productVariantTwo:id,variant', 'productVariantPrices.productVariantThree:id,variant']);
+
+        return response()->json(['status' => 'success', 'message' => 'Product Updated Successfully', 'data' => $product]);
+
     }
 
     /**
