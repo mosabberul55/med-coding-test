@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ProductVariantPrice;
 use App\Models\Variant;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -65,9 +66,7 @@ class ProductController extends Controller
             });
         }
         if ($date) {
-            $productsSearch->whereHas('productVariantPrices', function ($query) use ($date) {
-                $query->where('date', $date);
-            });
+            $productsSearch->whereDate('created_at', Carbon::parse($date)->format('Y-m-d'));
         }
         $products = $productsSearch->paginate(2);
 //        return $products;
